@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
+const isGithubActions = Boolean(process.env.GITHUB_ACTIONS);
+
 const nextConfig = {
-  output: 'export',
+  ...(isGithubActions ? { output: 'export' } : {}),
   images: { unoptimized: true },
   // si tu repo es https://github.com/USER/REPO y Pages queda /REPO
-  basePath: process.env.GITHUB_ACTIONS ? '/REPO' : '',
-  assetPrefix: process.env.GITHUB_ACTIONS ? '/REPO/' : '',
+  basePath: isGithubActions ? '/REPO' : '',
+  assetPrefix: isGithubActions ? '/REPO/' : '',
 };
 
 module.exports = nextConfig;
