@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Box,
   Drawer,
@@ -30,8 +31,10 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { useThemeMode } from '@/context/ThemeContext';
 import { useNavigation, NavigationSection } from '@/context/NavigationContext';
+import { useAuth } from '@/context/AuthContext';
 
 const DRAWER_WIDTH = 260;
 const DRAWER_WIDTH_COLLAPSED = 72;
@@ -57,11 +60,24 @@ interface DashboardShellProps {
 
 export default function DashboardShell({ children }: DashboardShellProps) {
   const theme = useTheme();
+  const router = useRouter();
   const { mode, toggleTheme } = useThemeMode();
   const { activeSection, setActiveSection, sectionTitle } = useNavigation();
+  const { user, signOut } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = '/login';
+  };
+
+  // Obtener iniciales del email del usuario
+  const userInitials = user?.email 
+    ? user.email.substring(0, 2).toUpperCase() 
+    : 'US';
+  const userEmail = user?.email || 'Usuario';
 
   const currentDrawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
 
@@ -206,18 +222,29 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         }}
       >
         {collapsed ? (
-          <Tooltip title="Tomas Dular" placement="right" arrow>
-            <Avatar
-              sx={{
-                width: 36,
-                height: 36,
-                bgcolor: 'primary.main',
-                fontSize: '0.875rem',
-              }}
-            >
-              TD
-            </Avatar>
-          </Tooltip>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <Tooltip title={userEmail} placement="right" arrow>
+              <Avatar
+                sx={{
+                  width: 36,
+                  height: 36,
+                  bgcolor: 'primary.main',
+                  fontSize: '0.875rem',
+                }}
+              >
+                {userInitials}
+              </Avatar>
+            </Tooltip>
+            <Tooltip title="Cerrar sesión" placement="right" arrow>
+              <IconButton
+                onClick={handleSignOut}
+                size="small"
+                sx={{ color: 'text.secondary' }}
+              >
+                <LogoutIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         ) : (
           <>
             <Avatar
@@ -228,16 +255,25 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 fontSize: '0.875rem',
               }}
             >
-              TD
+              {userInitials}
             </Avatar>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="body2" fontWeight={600} noWrap>
-                Tomas Dular
+                {userEmail}
               </Typography>
               <Typography variant="caption" color="text.secondary" noWrap>
                 Administrador
               </Typography>
             </Box>
+            <Tooltip title="Cerrar sesión">
+              <IconButton
+                onClick={handleSignOut}
+                size="small"
+                sx={{ color: 'text.secondary' }}
+              >
+                <LogoutIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </>
         )}
       </Box>
@@ -294,17 +330,19 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             </IconButton>
           </Tooltip>
 
-          <Avatar
-            sx={{
-              width: 36,
-              height: 36,
-              bgcolor: 'primary.main',
-              display: { xs: 'none', sm: 'flex' },
-              ml: 1,
-            }}
-          >
-            TD
-          </Avatar>
+          <Tooltip title={userEmail}>
+            <Avatar
+              sx={{
+                width: 36,
+                height: 36,
+                bgcolor: 'primary.main',
+                display: { xs: 'none', sm: 'flex' },
+                ml: 1,
+              }}
+            >
+              {userInitials}
+            </Avatar>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 

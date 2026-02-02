@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase-server';
 import type { KpiStat } from '@/types/database';
 
 // Helper para calcular fechas
@@ -58,11 +58,8 @@ function formatNumber(num: number): string {
 }
 
 async function getStatsFromSupabase(): Promise<KpiStat[]> {
-  const supabase = getSupabaseClient();
-  
-  if (!supabase) {
-    throw new Error('Supabase client not available');
-  }
+  // Usar Service Role Key (solo servidor, bypasea RLS)
+  const supabase = getSupabaseServerClient();
   
   const dates = getDateRanges();
   
@@ -414,8 +411,8 @@ function getMockStats(): KpiStat[] {
 
 export async function GET() {
   try {
-    // Verificar si Supabase está configurado
-    if (!isSupabaseConfigured()) {
+    // Verificar si Supabase Server está configurado (Service Role Key)
+    if (!isSupabaseServerConfigured()) {
       return NextResponse.json({
         success: true,
         data: getMockStats(),

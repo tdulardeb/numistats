@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { NavigationProvider } from '@/context/NavigationContext';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata: Metadata = {
   title: 'Dashboard Stats',
@@ -24,9 +25,11 @@ export default function RootLayout({
       <body>
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
           <ThemeProvider defaultMode="dark">
-            <NavigationProvider>
-              {children}
-            </NavigationProvider>
+            <AuthProvider>
+              <NavigationProvider>
+                {children}
+              </NavigationProvider>
+            </AuthProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

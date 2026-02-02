@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import { getSupabaseServerClient, isSupabaseServerConfigured } from '@/lib/supabase-server';
 
 // Tipos para los datos de analytics
 export interface FunnelData {
@@ -48,11 +48,8 @@ function formatDateLabel(date: Date): string {
 }
 
 async function getAnalyticsFromSupabase(): Promise<AnalyticsData> {
-  const supabase = getSupabaseClient();
-  
-  if (!supabase) {
-    throw new Error('Supabase client not available');
-  }
+  // Usar Service Role Key (solo servidor, bypasea RLS)
+  const supabase = getSupabaseServerClient();
 
   const last7Days = getLastNDays(7);
   const startDate = last7Days[0].toISOString();
@@ -186,7 +183,7 @@ function getMockAnalytics(): AnalyticsData {
 
 export async function GET() {
   try {
-    if (!isSupabaseConfigured()) {
+    if (!isSupabaseServerConfigured()) {
       return NextResponse.json({
         success: true,
         data: getMockAnalytics(),
