@@ -26,6 +26,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import ChatIcon from '@mui/icons-material/Chat';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import BarChartIcon from '@mui/icons-material/BarChart';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -49,6 +50,7 @@ const navItems: NavItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, section: 'all' },
   { text: 'Atenciones', icon: <SupportAgentIcon />, section: 'atenciones' },
   { text: 'Analytics', icon: <BarChartIcon />, section: 'analytics' },
+  { text: 'PROD vs PREPROD', icon: <CompareArrowsIcon />, section: 'compare' },
   { text: 'Usuarios', icon: <PeopleIcon />, section: 'users' },
   { text: 'Mensajes', icon: <ChatIcon />, section: 'messages' },
   { text: 'Tickets', icon: <ConfirmationNumberIcon />, section: 'tickets' },
