@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 
-export type NavigationSection = 'all' | 'atenciones' | 'users' | 'messages' | 'tickets' | 'analytics';
+export type NavigationSection = 'all' | 'atenciones' | 'users' | 'messages' | 'tickets' | 'analytics' | 'compare';
 
 interface NavigationContextType {
   activeSection: NavigationSection;
@@ -35,6 +35,10 @@ const sectionInfo: Record<NavigationSection, { title: string; description: strin
   analytics: {
     title: 'Analytics',
     description: 'Visualizaciones y tendencias de tu plataforma.',
+  },
+  compare: {
+    title: 'PROD vs PREPROD',
+    description: 'Comparativa de métricas entre los entornos de producción y preproducción.',
   },
 };
 

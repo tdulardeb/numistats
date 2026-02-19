@@ -3,6 +3,7 @@
 import DashboardShell from '@/components/DashboardShell';
 import KpiGrid from '@/components/KpiGrid';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
+import ComparisonView from '@/components/ComparisonView';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Box, Chip } from '@mui/material';
 import StorageIcon from '@mui/icons-material/Storage';
@@ -10,8 +11,12 @@ import { useNavigation } from '@/context/NavigationContext';
 
 export default function Home() {
   const { activeSection } = useNavigation();
-  
-  const isAnalytics = activeSection === 'analytics';
+
+  function renderContent() {
+    if (activeSection === 'analytics') return <AnalyticsCharts />;
+    if (activeSection === 'compare') return <ComparisonView />;
+    return <KpiGrid />;
+  }
 
   return (
     <ProtectedRoute>
@@ -29,7 +34,7 @@ export default function Home() {
           />
         </Box>
 
-        {isAnalytics ? <AnalyticsCharts /> : <KpiGrid />}
+        {renderContent()}
       </DashboardShell>
     </ProtectedRoute>
   );

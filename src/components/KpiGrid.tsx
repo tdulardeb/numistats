@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -16,6 +16,8 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -33,8 +35,12 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EscalatorWarningIcon from '@mui/icons-material/EscalatorWarning';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ConstructionIcon from '@mui/icons-material/Construction';
+import StorageIcon from '@mui/icons-material/Storage';
 import type { KpiStat } from '@/types/database';
+import type { CompareResponse } from '@/app/api/stats-compare/route';
 import { useNavigation } from '@/context/NavigationContext';
+
+type Env = 'prod' | 'preprod';
 
 // Mapeo de iconos string a componentes
 const iconMap: Record<string, React.ReactNode> = {
@@ -51,11 +57,14 @@ const iconMap: Record<string, React.ReactNode> = {
   escalator_warning: <EscalatorWarningIcon />,
 };
 
+const PROD_COLOR = '#6366f1';
+const PREPROD_COLOR = '#f59e0b';
+
 // Colores
 const colors = {
   primary: '#6366f1',
-  n0: '#10b981',      // Verde para N0 (resueltos)
-  n1: '#f59e0b',      // Amarillo para N1 (escalados)
+  n0: '#10b981',
+  n1: '#f59e0b',
   secondary: '#8b5cf6',
 };
 
@@ -67,8 +76,16 @@ interface ApiResponse {
   error?: string;
 }
 
+interface HeroMetricsProps {
+  stats: KpiStat[];
+  loading: boolean;
+  env: Env;
+  preprodConfigured: boolean;
+  onEnvChange: (env: Env) => void;
+}
+
 // Componente principal de métricas destacadas
-function HeroMetrics({ stats, loading }: { stats: KpiStat[]; loading: boolean }) {
+function HeroMetrics({ stats, loading, env, preprodConfigured, onEnvChange }: HeroMetricsProps) {
   const totalAtenciones = stats.find(s => s.id === 'cantidad-atenciones');
   const atencionesN0 = stats.find(s => s.id === 'atenciones-n0');
   const atencionesN1 = stats.find(s => s.id === 'atenciones-n1');
@@ -81,9 +98,38 @@ function HeroMetrics({ stats, loading }: { stats: KpiStat[]; loading: boolean })
   const n0Percentage = total > 0 ? Math.round((n0Value / total) * 100) : 0;
   const n1Percentage = total > 0 ? Math.round((n1Value / total) * 100) : 0;
 
+  const envColor = env === 'prod' ? PROD_COLOR : PREPROD_COLOR;
+
   if (loading) {
     return (
       <Box sx={{ mb: 6 }}>
+        {/* Keep toggle visible during loading */}
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Skeleton variant="text" width={200} height={32} sx={{ mx: 'auto', mb: 1 }} />
+          <Skeleton variant="text" width={280} height={20} sx={{ mx: 'auto', mb: 2.5 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1.5 }}>
+            <ToggleButtonGroup
+              value={env}
+              exclusive
+              onChange={(_, val) => val && onEnvChange(val as Env)}
+              size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  px: 2.5, py: 0.75, fontWeight: 700, fontSize: '0.8rem', letterSpacing: 0.5,
+                  border: '1.5px solid', borderColor: 'divider',
+                  '&.Mui-selected': { color: 'white', borderColor: 'transparent' },
+                },
+                '& .MuiToggleButton-root[value="prod"].Mui-selected': { bgcolor: PROD_COLOR },
+                '& .MuiToggleButton-root[value="preprod"].Mui-selected': { bgcolor: PREPROD_COLOR },
+              }}
+            >
+              <ToggleButton value="prod"><StorageIcon sx={{ fontSize: 14, mr: 0.75 }} />PROD</ToggleButton>
+              <ToggleButton value="preprod" disabled={!preprodConfigured}><StorageIcon sx={{ fontSize: 14, mr: 0.75 }} />PREPROD</ToggleButton>
+            </ToggleButtonGroup>
+            <Chip size="small" label={env === 'prod' ? 'Producción' : 'Preproducción'}
+              sx={{ bgcolor: alpha(envColor, 0.12), color: envColor, fontWeight: 700, fontSize: '0.72rem', border: `1px solid ${alpha(envColor, 0.3)}` }} />
+          </Box>
+        </Box>
         <Grid container spacing={4}>
           {[1, 2, 3].map((i) => (
             <Grid size={{ xs: 12, md: 4 }} key={i}>
@@ -108,9 +154,72 @@ function HeroMetrics({ stats, loading }: { stats: KpiStat[]; loading: boolean })
         <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
           Panel de Atenciones
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
           Datos históricos desde el inicio de la plataforma
         </Typography>
+
+        {/* Toggle PROD / PREPROD */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1.5 }}>
+          <ToggleButtonGroup
+            value={env}
+            exclusive
+            onChange={(_, val) => val && onEnvChange(val as Env)}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                px: 2.5,
+                py: 0.75,
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                letterSpacing: 0.5,
+                border: '1.5px solid',
+                borderColor: 'divider',
+                transition: 'all 0.2s ease',
+                '&.Mui-selected': {
+                  color: 'white',
+                  borderColor: 'transparent',
+                },
+              },
+              '& .MuiToggleButton-root[value="prod"].Mui-selected': {
+                bgcolor: PROD_COLOR,
+                '&:hover': { bgcolor: PROD_COLOR, filter: 'brightness(1.1)' },
+              },
+              '& .MuiToggleButton-root[value="preprod"].Mui-selected': {
+                bgcolor: PREPROD_COLOR,
+                '&:hover': { bgcolor: PREPROD_COLOR, filter: 'brightness(1.1)' },
+              },
+            }}
+          >
+            <ToggleButton value="prod" disableRipple={false}>
+              <StorageIcon sx={{ fontSize: 14, mr: 0.75 }} />
+              PROD
+            </ToggleButton>
+            <ToggleButton value="preprod" disabled={!preprodConfigured} disableRipple={false}>
+              <StorageIcon sx={{ fontSize: 14, mr: 0.75 }} />
+              PREPROD
+              {!preprodConfigured && (
+                <Chip
+                  label="Sin configurar"
+                  size="small"
+                  sx={{ ml: 1, height: 16, fontSize: '0.6rem', bgcolor: alpha('#000', 0.1) }}
+                />
+              )}
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* Badge del entorno activo */}
+          <Chip
+            size="small"
+            label={env === 'prod' ? 'Producción' : 'Preproducción'}
+            sx={{
+              bgcolor: alpha(envColor, 0.12),
+              color: envColor,
+              fontWeight: 700,
+              fontSize: '0.72rem',
+              border: `1px solid ${alpha(envColor, 0.3)}`,
+            }}
+          />
+        </Box>
       </Box>
 
       <Grid container spacing={4}>
@@ -120,12 +229,12 @@ function HeroMetrics({ stats, loading }: { stats: KpiStat[]; loading: boolean })
             sx={{
               height: '100%',
               minHeight: 280,
-              background: `linear-gradient(135deg, ${alpha(colors.primary, 0.1)} 0%, ${alpha(colors.primary, 0.05)} 100%)`,
-              border: `2px solid ${alpha(colors.primary, 0.2)}`,
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              background: `linear-gradient(135deg, ${alpha(envColor, 0.1)} 0%, ${alpha(envColor, 0.05)} 100%)`,
+              border: `2px solid ${alpha(envColor, 0.2)}`,
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.3s ease',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: `0 20px 40px -12px ${alpha(colors.primary, 0.3)}`,
+                boxShadow: `0 20px 40px -12px ${alpha(envColor, 0.3)}`,
               },
             }}
           >
@@ -135,15 +244,16 @@ function HeroMetrics({ stats, loading }: { stats: KpiStat[]; loading: boolean })
                   width: 80,
                   height: 80,
                   borderRadius: '50%',
-                  bgcolor: alpha(colors.primary, 0.15),
+                  bgcolor: alpha(envColor, 0.15),
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   mx: 'auto',
                   mb: 3,
+                  transition: 'background-color 0.3s ease',
                 }}
               >
-                <SupportAgentIcon sx={{ fontSize: 40, color: colors.primary }} />
+                <SupportAgentIcon sx={{ fontSize: 40, color: envColor, transition: 'color 0.3s ease' }} />
               </Box>
               
               <Typography
@@ -151,9 +261,10 @@ function HeroMetrics({ stats, loading }: { stats: KpiStat[]; loading: boolean })
                 fontWeight={800}
                 sx={{
                   fontSize: { xs: '3rem', md: '4rem' },
-                  color: colors.primary,
+                  color: envColor,
                   lineHeight: 1,
                   mb: 1,
+                  transition: 'color 0.3s ease',
                 }}
               >
                 {totalAtenciones?.value ?? '—'}
@@ -375,45 +486,61 @@ function SmallKpiCard({ stat }: { stat: KpiStat }) {
 
 export default function KpiGrid() {
   const { activeSection } = useNavigation();
+  const [env, setEnv] = useState<Env>('prod');
   const [stats, setStats] = useState<KpiStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configured, setConfigured] = useState(true);
+  const [preprodConfigured, setPreprodConfigured] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async (targetEnv: Env = env) => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/stats');
-
-      if (!response.ok) {
-        throw new Error('Error al cargar estadísticas');
+      if (targetEnv === 'preprod') {
+        const response = await fetch('/api/stats-compare');
+        if (!response.ok) throw new Error('Error al cargar estadísticas PREPROD');
+        const result: CompareResponse = await response.json();
+        setStats(result.preprod);
+        setPreprodConfigured(result.preprodConfigured);
+        setConfigured(result.preprodConfigured);
+      } else {
+        const response = await fetch('/api/stats');
+        if (!response.ok) throw new Error('Error al cargar estadísticas');
+        const result: ApiResponse = await response.json();
+        setStats(result.data);
+        setConfigured(result.configured ?? true);
+        // También actualizar si preprod está configurado
+        const compareRes = await fetch('/api/stats-compare');
+        if (compareRes.ok) {
+          const compareData: CompareResponse = await compareRes.json();
+          setPreprodConfigured(compareData.preprodConfigured);
+        }
+        if (!result.success && result.error) setError(result.error);
       }
 
-      const result: ApiResponse = await response.json();
-      
-      setStats(result.data);
-      setConfigured(result.configured ?? true);
       setLastUpdate(new Date());
-      
-      if (!result.success && result.error) {
-        setError(result.error);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
       console.error('Error fetching stats:', err);
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [env]);
+
+  const handleEnvChange = (newEnv: Env) => {
+    setEnv(newEnv);
   };
 
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 5 * 60 * 1000);
+    fetchStats(env);
+    const interval = setInterval(() => fetchStats(env), 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [env]);
 
   // Agrupar stats
   const atencionesStats = stats.filter(s => s.category === 'atenciones');
@@ -439,7 +566,7 @@ export default function KpiGrid() {
             )}
           </Box>
           <Tooltip title="Actualizar datos">
-            <IconButton onClick={fetchStats} disabled={loading}>
+            <IconButton onClick={() => fetchStats()} disabled={loading}>
               <RefreshIcon sx={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </IconButton>
           </Tooltip>
@@ -494,7 +621,7 @@ export default function KpiGrid() {
         )}
         <Tooltip title="Actualizar datos">
           <IconButton 
-            onClick={fetchStats} 
+            onClick={() => fetchStats()} 
             disabled={loading}
             size="small"
             sx={{ 
@@ -527,7 +654,13 @@ export default function KpiGrid() {
       )}
 
       {/* MÉTRICAS PRINCIPALES - Atenciones */}
-      <HeroMetrics stats={atencionesStats} loading={loading} />
+      <HeroMetrics
+        stats={atencionesStats}
+        loading={loading}
+        env={env}
+        preprodConfigured={preprodConfigured}
+        onEnvChange={handleEnvChange}
+      />
 
       {/* Métricas secundarias en Accordion */}
       {activeSection === 'all' && (
