@@ -28,6 +28,7 @@ import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import BiotechIcon from '@mui/icons-material/Biotech';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import LightModeIcon from '@mui/icons-material/LightMode';
@@ -54,6 +55,7 @@ const navItems: NavItem[] = [
   { text: 'Usuarios', icon: <PeopleIcon />, section: 'users' },
   { text: 'Mensajes', icon: <ChatIcon />, section: 'messages' },
   { text: 'Tickets', icon: <ConfirmationNumberIcon />, section: 'tickets' },
+  { text: 'Testing', icon: <BiotechIcon />, section: 'testing' },
 ];
 
 interface DashboardShellProps {
