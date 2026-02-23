@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 
-export type NavigationSection = 'all' | 'atenciones' | 'users' | 'messages' | 'tickets' | 'analytics' | 'compare';
+export type NavigationSection = 'all' | 'atenciones' | 'users' | 'messages' | 'tickets' | 'analytics' | 'compare' | 'testing';
 
 interface NavigationContextType {
   activeSection: NavigationSection;
@@ -39,6 +39,10 @@ const sectionInfo: Record<NavigationSection, { title: string; description: strin
   compare: {
     title: 'PROD vs PREPROD',
     description: 'Comparativa de métricas entre los entornos de producción y preproducción.',
+  },
+  testing: {
+    title: 'Testing Automatizado',
+    description: 'Ejecutá tests de smoke sobre NumiAgent y validá respuestas semánticamente con IA.',
   },
 };
 

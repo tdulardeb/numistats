@@ -4,6 +4,7 @@ import DashboardShell from '@/components/DashboardShell';
 import KpiGrid from '@/components/KpiGrid';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
 import ComparisonView from '@/components/ComparisonView';
+import TestingView from '@/components/TestingView';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { Box, Chip } from '@mui/material';
 import StorageIcon from '@mui/icons-material/Storage';
@@ -15,6 +16,7 @@ export default function Home() {
   function renderContent() {
     if (activeSection === 'analytics') return <AnalyticsCharts />;
     if (activeSection === 'compare') return <ComparisonView />;
+    if (activeSection === 'testing') return <TestingView />;
     return <KpiGrid />;
   }
 
