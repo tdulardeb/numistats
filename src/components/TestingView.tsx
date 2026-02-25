@@ -48,6 +48,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import SpeedIcon from '@mui/icons-material/Speed';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
 
 interface TestCase {
   id: string;
@@ -77,6 +79,24 @@ interface TestMetrics {
   threshold: number;
   passed: boolean;
   avgLatencyMs: number;
+}
+
+interface StressRequestResult {
+  index: number;
+  status: 'success' | 'error';
+  latencyMs: number;
+  httpStatus?: number;
+  error?: string;
+}
+
+interface StressStats {
+  total: number;
+  success: number;
+  errors: number;
+  avgLatencyMs: number;
+  minLatencyMs: number;
+  maxLatencyMs: number;
+  p95LatencyMs: number;
 }
 
 function generateId() {
@@ -200,6 +220,18 @@ export default function TestingView() {
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Stress test state
+  const [stressWebhookUrl, setStressWebhookUrl] = useState('');
+  const [stressApiKey, setStressApiKey] = useState('');
+  const [stressShowApiKey, setStressShowApiKey] = useState(false);
+  const [stressConcurrency, setStressConcurrency] = useState<number>(10);
+  const [stressMessage, setStressMessage] = useState('');
+  const [stressRunning, setStressRunning] = useState(false);
+  const [stressResults, setStressResults] = useState<StressRequestResult[] | null>(null);
+  const [stressStats, setStressStats] = useState<StressStats | null>(null);
+  const [stressError, setStressError] = useState<string | null>(null);
+  const [stressExpandedRows, setStressExpandedRows] = useState<Set<number>>(new Set());
+
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -305,6 +337,50 @@ export default function TestingView() {
     URL.revokeObjectURL(url);
   };
 
+  const runStressTest = async () => {
+    if (!stressWebhookUrl.trim()) {
+      setStressError('Ingresá la URL del webhook.');
+      return;
+    }
+    setStressRunning(true);
+    setStressError(null);
+    setStressResults(null);
+    setStressStats(null);
+    setStressExpandedRows(new Set());
+    try {
+      const res = await fetch('/api/stress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          webhookUrl: stressWebhookUrl.trim(),
+          apiKey: stressApiKey.trim(),
+          concurrency: stressConcurrency,
+          message: stressMessage.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStressError(data.error ?? 'Error al ejecutar el stress test.');
+      } else {
+        setStressResults(data.results);
+        setStressStats(data.stats);
+      }
+    } catch (e) {
+      setStressError(`Error de conexión: ${(e as Error).message}`);
+    } finally {
+      setStressRunning(false);
+    }
+  };
+
+  const toggleStressRow = (index: number) => {
+    setStressExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
       {/* Header */}
@@ -366,7 +442,7 @@ export default function TestingView() {
           <Divider />
           <CardContent>
             <Grid container spacing={2}>
-              <Grid size={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   size="small"
@@ -799,7 +875,7 @@ export default function TestingView() {
                                   {r.response || <em style={{ opacity: 0.5 }}>Sin respuesta</em>}
                                 </Typography>
                               </Grid>
-                              <Grid size={12}>
+                              <Grid size={{ xs: 12 }}>
                                 <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
                                   RAZÓN DE VALIDACIÓN
                                 </Typography>
@@ -808,6 +884,359 @@ export default function TestingView() {
                                 </Typography>
                               </Grid>
                             </Grid>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
+      )}
+
+      {/* ───────────────────────── STRESS ───────────────────────── */}
+      <Box sx={{ mt: 6, mb: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <SpeedIcon sx={{ color: 'white', fontSize: 22 }} />
+        </Box>
+        <Box>
+          <Typography variant="h6" fontWeight={700}>
+            Stress Test
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Disparar N requests simultáneas al webhook de LangFlow para medir rendimiento y estabilidad
+          </Typography>
+        </Box>
+      </Box>
+
+      <Card sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
+        <CardContent>
+          <Grid container spacing={2}>
+            {/* Webhook URL */}
+            <Grid size={12}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Webhook URL"
+                placeholder="https://api.journeybuilder.numia.co/api/v1/run/..."
+                value={stressWebhookUrl}
+                onChange={(e) => setStressWebhookUrl(e.target.value)}
+              />
+            </Grid>
+
+            {/* API Key */}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="API Key"
+                type={stressShowApiKey ? 'text' : 'password'}
+                placeholder="sk-..."
+                value={stressApiKey}
+                onChange={(e) => setStressApiKey(e.target.value)}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => setStressShowApiKey((v) => !v)}>
+                        {stressShowApiKey ? (
+                          <VisibilityOffIcon fontSize="small" />
+                        ) : (
+                          <VisibilityIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+
+            {/* Message */}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Mensaje a enviar"
+                placeholder='ej: "¿Cuál es el saldo?" (deja vacío para usar "stress test")'
+                value={stressMessage}
+                onChange={(e) => setStressMessage(e.target.value)}
+              />
+            </Grid>
+
+            {/* Concurrency slider */}
+            <Grid size={12}>
+              <Box sx={{ px: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Requests simultáneos
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" fontWeight={700} color="error.main">
+                      {stressConcurrency}
+                    </Typography>
+                    <TextField
+                      size="small"
+                      type="number"
+                      value={stressConcurrency}
+                      onChange={(e) => {
+                        const v = Math.max(1, Math.min(200, Number(e.target.value) || 1));
+                        setStressConcurrency(v);
+                      }}
+                      inputProps={{ min: 1, max: 200, style: { width: 60, textAlign: 'center', padding: '4px 6px' } }}
+                      sx={{ '& fieldset': { borderRadius: 1 } }}
+                    />
+                  </Box>
+                </Box>
+                <Slider
+                  value={stressConcurrency}
+                  onChange={(_, v) => setStressConcurrency(v as number)}
+                  min={1}
+                  max={100}
+                  step={1}
+                  marks={[
+                    { value: 1, label: '1' },
+                    { value: 10, label: '10' },
+                    { value: 25, label: '25' },
+                    { value: 50, label: '50' },
+                    { value: 100, label: '100' },
+                  ]}
+                  sx={{
+                    '& .MuiSlider-track': { background: 'linear-gradient(90deg, #ef4444, #f97316)' },
+                    '& .MuiSlider-thumb': { bgcolor: '#ef4444' },
+                  }}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+
+          {/* Run button */}
+          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={stressRunning ? <CircularProgress size={18} color="inherit" /> : <FlashOnIcon />}
+              onClick={runStressTest}
+              disabled={stressRunning}
+              sx={{
+                background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
+                px: 4,
+                fontWeight: 700,
+              }}
+            >
+              {stressRunning ? `Ejecutando ${stressConcurrency} requests...` : `Lanzar ${stressConcurrency} requests`}
+            </Button>
+            {stressStats && (
+              <Chip
+                label={`${stressStats.success}/${stressStats.total} OK · avg ${stressStats.avgLatencyMs}ms`}
+                color={stressStats.errors === 0 ? 'success' : stressStats.success === 0 ? 'error' : 'warning'}
+                variant="outlined"
+                size="small"
+                sx={{ fontWeight: 700 }}
+              />
+            )}
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Stress progress indicator */}
+      {stressRunning && (
+        <Box sx={{ mb: 3 }}>
+          <LinearProgress
+            sx={{
+              height: 8,
+              borderRadius: 4,
+              bgcolor: 'action.hover',
+              '& .MuiLinearProgress-bar': {
+                background: 'linear-gradient(90deg, #ef4444, #f97316)',
+                borderRadius: 4,
+              },
+            }}
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            Disparando {stressConcurrency} requests en paralelo...
+          </Typography>
+        </Box>
+      )}
+
+      {/* Stress error */}
+      {stressError && (
+        <Paper
+          sx={{
+            p: 2,
+            mb: 3,
+            bgcolor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="body2" color="error" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ErrorIcon fontSize="small" />
+            {stressError}
+          </Typography>
+        </Paper>
+      )}
+
+      {/* Stress results */}
+      {stressStats && stressResults && (
+        <>
+          <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+            <MetricCard label="Total" value={stressStats.total} />
+            <MetricCard label="Exitosas" value={stressStats.success} color="#10b981" />
+            <MetricCard label="Errores" value={stressStats.errors} color="#ef4444" />
+            <MetricCard
+              label="Avg latencia"
+              value={`${stressStats.avgLatencyMs}ms`}
+              color={
+                stressStats.avgLatencyMs < 3000
+                  ? '#10b981'
+                  : stressStats.avgLatencyMs < 8000
+                  ? '#f59e0b'
+                  : '#ef4444'
+              }
+            />
+            <MetricCard label="Mín" value={`${stressStats.minLatencyMs}ms`} color="#10b981" />
+            <MetricCard
+              label="Máx"
+              value={`${stressStats.maxLatencyMs}ms`}
+              color={stressStats.maxLatencyMs > 10000 ? '#ef4444' : '#f59e0b'}
+            />
+            <MetricCard
+              label="P95"
+              value={`${stressStats.p95LatencyMs}ms`}
+              color={stressStats.p95LatencyMs < 8000 ? '#f59e0b' : '#ef4444'}
+            />
+          </Stack>
+
+          <TableContainer component={Paper} sx={{ border: '1px solid', borderColor: 'divider', mb: 4 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ fontWeight: 700, width: 50 }}>#</TableCell>
+                  <TableCell sx={{ fontWeight: 700, width: 100 }}>Estado</TableCell>
+                  <TableCell sx={{ fontWeight: 700, width: 100 }}>HTTP</TableCell>
+                  <TableCell sx={{ fontWeight: 700, width: 120 }}>Latencia</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Error</TableCell>
+                  <TableCell sx={{ width: 40 }} />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {stressResults.map((r) => (
+                  <>
+                    <TableRow
+                      key={r.index}
+                      hover
+                      sx={{
+                        cursor: r.error ? 'pointer' : 'default',
+                        bgcolor:
+                          r.status === 'success'
+                            ? 'rgba(16, 185, 129, 0.04)'
+                            : 'rgba(239, 68, 68, 0.04)',
+                      }}
+                      onClick={() => r.error && toggleStressRow(r.index)}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                          {r.index}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={r.status === 'success' ? 'OK' : 'ERROR'}
+                          color={r.status === 'success' ? 'success' : 'error'}
+                          size="small"
+                          icon={
+                            r.status === 'success' ? (
+                              <CheckCircleIcon sx={{ fontSize: 14 }} />
+                            ) : (
+                              <CancelIcon sx={{ fontSize: 14 }} />
+                            )
+                          }
+                          sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          color={
+                            !r.httpStatus
+                              ? 'text.secondary'
+                              : r.httpStatus < 300
+                              ? 'success.main'
+                              : r.httpStatus < 500
+                              ? 'warning.main'
+                              : 'error.main'
+                          }
+                          fontWeight={600}
+                        >
+                          {r.httpStatus ?? '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          color={
+                            r.latencyMs < 3000
+                              ? 'success.main'
+                              : r.latencyMs < 8000
+                              ? 'warning.main'
+                              : 'error.main'
+                          }
+                          fontWeight={600}
+                        >
+                          {r.latencyMs}ms
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          {r.error ?? '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {r.error && (
+                          <IconButton size="small">
+                            {stressExpandedRows.has(r.index) ? (
+                              <ExpandLessIcon fontSize="small" />
+                            ) : (
+                              <ExpandMoreIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        )}
+                      </TableCell>
+                    </TableRow>
+
+                    {r.error && stressExpandedRows.has(r.index) && (
+                      <TableRow key={`${r.index}-detail`}>
+                        <TableCell colSpan={6} sx={{ p: 0 }}>
+                          <Box
+                            sx={{
+                              p: 2,
+                              bgcolor: 'rgba(239, 68, 68, 0.06)',
+                              borderLeft: '3px solid',
+                              borderColor: 'error.main',
+                            }}
+                          >
+                            <Typography variant="caption" color="text.secondary" fontWeight={600} display="block" gutterBottom>
+                              DETALLE DEL ERROR
+                            </Typography>
+                            <Typography variant="body2" color="error" sx={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                              {r.error}
+                            </Typography>
                           </Box>
                         </TableCell>
                       </TableRow>
