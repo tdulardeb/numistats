@@ -45,6 +45,7 @@ function buildPayload(question: string) {
     input_value: question,
     output_type: 'chat',
     input_type: 'chat',
+    session_id: 'Testing RAG',
   };
 }
 

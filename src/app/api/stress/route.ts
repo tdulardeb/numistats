@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     input_value: message?.trim() || 'stress test',
     output_type: 'chat',
     input_type: 'chat',
+    session_id: 'Testing RAG',
   });
 
   const tasks = Array.from({ length: count }, async (_, i): Promise<StressRequestResult> => {
